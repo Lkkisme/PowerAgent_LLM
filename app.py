@@ -217,17 +217,13 @@ OPENAI_MODEL_LABELS = {
 
 GEMINI_MODELS = [
     "gemini-2.5-flash-lite",
-    "gemini-2.5-flash",
-    "gemma-3-12b-it",
-    "gemma-3-27b-it",
-    "gemini-3-flash",
+    "gemini-3-flash-preview",
+    "gemini-3.1-pro-preview",
 ]
 GEMINI_MODEL_LABELS = {
-    "gemma-3-12b-it": "Gemma 3 12B",
-    "gemma-3-27b-it": "Gemma 3 27B",
-    "gemini-3-flash": "Gemini 3 Flash",
     "gemini-2.5-flash-lite": "Gemini 2.5 Flash Lite",
-    "gemini-2.5-flash": "Gemini 2.5 Flash",
+    "gemini-3-flash-preview": "Gemini 3 Flash Preview",
+    "gemini-3.1-pro-preview": "Gemini 3.1 Pro Preview",
 }
 
 
@@ -266,20 +262,15 @@ def _init_state() -> None:
             st.session_state.llm_provider = "openai"
         else:
             st.session_state.llm_provider = "gemini"
-    if "llm_api_key" not in st.session_state:
-        if st.session_state.llm_provider == "gemini":
+    # Restore API key: backup > env default > empty
+    _saved_key = str(st.session_state.get("_saved_api_key", "") or "").strip()
+    if "llm_api_key" not in st.session_state or not str(st.session_state.get("llm_api_key", "")).strip():
+        if _saved_key:
+            st.session_state.llm_api_key = _saved_key
+        elif st.session_state.llm_provider == "gemini":
             st.session_state.llm_api_key = GEMINI_API_KEY or ""
         else:
             st.session_state.llm_api_key = OPENAI_API_KEY or ""
-    elif not str(st.session_state.get("llm_api_key", "")).strip():
-        # Restore from backup if widget key was cleared during rerun
-        saved = str(st.session_state.get("_saved_api_key", "") or "").strip()
-        if saved:
-            st.session_state.llm_api_key = saved
-        else:
-            default_key = GEMINI_API_KEY if st.session_state.llm_provider == "gemini" else OPENAI_API_KEY
-            if default_key:
-                st.session_state.llm_api_key = default_key
     if "llm_model" not in st.session_state:
         if st.session_state.llm_provider == "gemini":
             st.session_state.llm_model = GEMINI_MODEL
@@ -399,11 +390,9 @@ def _list_gemini_models_dynamic(api_key: str) -> tuple[list[str], Optional[str]]
                 continue
             seen.add(mid)
             model_list.append(mid)
-        # Keep a sensible fallback default visible.
-        if GEMINI_MODEL and GEMINI_MODEL not in seen:
-            model_list.append(GEMINI_MODEL)
-        if not model_list:
-            model_list = list(GEMINI_MODELS)
+        # Keep Gemini selector stable: only expose curated models in configured order.
+        curated = [m for m in GEMINI_MODELS if m in seen]
+        model_list = curated if curated else list(GEMINI_MODELS)
         cache[key] = {"models": model_list, "error": None}
         return model_list, None
     except Exception as e:
@@ -2191,6 +2180,11 @@ def main() -> None:
             if provider_default_key:
                 st.session_state.llm_api_key = provider_default_key
 
+        # Restore API key from backup before widget renders
+        if not str(st.session_state.get("llm_api_key", "") or "").strip():
+            _saved = str(st.session_state.get("_saved_api_key", "") or "").strip()
+            if _saved:
+                st.session_state.llm_api_key = _saved
         st.text_input(
             "API Key",
             type="password",
@@ -2217,9 +2211,13 @@ def main() -> None:
 
         current_model = str(st.session_state.get("llm_model", _provider_default_model(selected_provider)))
         if current_model and current_model not in model_options:
-            # Preserve explicit user choice across reruns/load-case even if
-            # dynamic model listing does not include it at this moment.
-            model_options = [current_model] + [m for m in model_options if m != current_model]
+            if selected_provider == "gemini":
+                # Gemini selector is curated/fixed; drop stale legacy model choices.
+                current_model = model_options[0] if model_options else _provider_default_model(selected_provider)
+                st.session_state.llm_model = current_model
+            else:
+                # Preserve explicit user choice for OpenAI models.
+                model_options = [current_model] + [m for m in model_options if m != current_model]
         elif not current_model:
             current_model = _provider_default_model(selected_provider)
             if current_model not in model_options and model_options:
