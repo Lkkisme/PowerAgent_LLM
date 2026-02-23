@@ -1,0 +1,9 @@
+google-genai
+matpowercaseframes
+numpy
+openai
+pandapower
+pandas
+plotly
+pydantic
+streamlit
