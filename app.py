@@ -2039,6 +2039,7 @@ def main() -> None:
     llm_only_active = str(st.session_state.get("solver_backend", "pandapower")) == "llm_only"
 
     st.title(T["title"])
+    st.caption("Created by Kangkai Liang (LKK) @ UCSD")
 
     # Show pending remedial confirmation dialog first.
     _render_remedial_confirm_dialog(T)
@@ -2609,6 +2610,16 @@ def main() -> None:
     user_text = st.chat_input(T["chat_placeholder"])
     if user_text:
         process_user_input(user_text, T)
+
+    # Footer contact
+    st.markdown(
+        "<div style='text-align:center; padding:2rem 0 1rem; color:#ccc; font-size:0.7rem;'>"
+        "Questions or feedback? Contact "
+        "<a href='mailto:kaliang@ucsd.edu' style='color:#ccc; text-decoration:none;'>kaliang@ucsd.edu</a>"
+        " · LKK"
+        "</div>",
+        unsafe_allow_html=True,
+    )
 
 
 if __name__ == "__main__":
