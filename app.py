@@ -272,9 +272,14 @@ def _init_state() -> None:
         else:
             st.session_state.llm_api_key = OPENAI_API_KEY or ""
     elif not str(st.session_state.get("llm_api_key", "")).strip():
-        default_key = GEMINI_API_KEY if st.session_state.llm_provider == "gemini" else OPENAI_API_KEY
-        if default_key:
-            st.session_state.llm_api_key = default_key
+        # Restore from backup if widget key was cleared during rerun
+        saved = str(st.session_state.get("_saved_api_key", "") or "").strip()
+        if saved:
+            st.session_state.llm_api_key = saved
+        else:
+            default_key = GEMINI_API_KEY if st.session_state.llm_provider == "gemini" else OPENAI_API_KEY
+            if default_key:
+                st.session_state.llm_api_key = default_key
     if "llm_model" not in st.session_state:
         if st.session_state.llm_provider == "gemini":
             st.session_state.llm_model = GEMINI_MODEL
@@ -2193,6 +2198,10 @@ def main() -> None:
             placeholder="Enter API key for selected provider",
             help="OpenAI: sk-... | Gemini: AIza... (or set env var)",
         )
+        # Backup key so it survives widget-key resets across reruns
+        _current_key = str(st.session_state.get("llm_api_key", "") or "").strip()
+        if _current_key:
+            st.session_state["_saved_api_key"] = _current_key
         _persist_insecure_api_key(
             selected_provider,
             str(st.session_state.get("llm_api_key", "") or ""),
