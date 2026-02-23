@@ -1,4 +1,4 @@
-﻿"""Main Streamlit app entrypoint."""
+"""Main Streamlit app entrypoint."""
 
 from __future__ import annotations
 
