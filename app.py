@@ -443,17 +443,18 @@ def _provider_default_model(provider: str) -> str:
 
 
 def _provider_default_key(provider: str) -> str:
+    """Return a pre-fill API key ONLY from .env.local (local dev).
+
+    On Streamlit Cloud (no .env.local), returns "" so the sidebar
+    starts empty and visitors must type their own key.
+    """
     local_env = _runtime_local_env()
     if provider == "gemini":
         return (
             str(local_env.get("GEMINI_API_KEY") or "").strip()
             or str(local_env.get("GOOGLE_API_KEY") or "").strip()
-            or str(GEMINI_API_KEY or "").strip()
         )
-    return (
-        str(local_env.get("OPENAI_API_KEY") or "").strip()
-        or str(OPENAI_API_KEY or "").strip()
-    )
+    return str(local_env.get("OPENAI_API_KEY") or "").strip()
 
 
 def _resolve_llm_settings() -> tuple[str, str, str]:
