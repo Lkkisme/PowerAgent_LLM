@@ -421,7 +421,9 @@ def _model_label(provider: str, model_id: str) -> str:
 
 
 def _runtime_local_env() -> dict[str, str]:
-    """Read current .env.local content at runtime (for refresh-safe defaults)."""
+    """Read .env.local at runtime — local dev only, skipped on cloud."""
+    if _is_cloud_deployment():
+        return {}
     env_path = Path(__file__).resolve().parent / ".env.local"
     try:
         return _parse_env_local(env_path)
@@ -581,11 +583,27 @@ def _parse_env_local(path: Path) -> dict[str, str]:
     return out
 
 
+def _is_cloud_deployment() -> bool:
+    """Detect Streamlit Cloud (or similar) where we must NOT persist user keys."""
+    # Streamlit Cloud sets HOSTNAME to a container id and lacks common local markers.
+    import platform
+    home = os.environ.get("HOME", "")
+    # Streamlit Cloud: Linux container, HOME=/home/appuser
+    if platform.system() == "Linux" and "appuser" in home:
+        return True
+    # Generic: if env explicitly says cloud
+    if os.environ.get("STREAMLIT_SHARING_MODE") or os.environ.get("IS_CLOUD"):
+        return True
+    return False
+
+
 def _persist_insecure_api_key(provider: str, api_key: str, model: Optional[str] = None) -> None:
     """
-    Intentionally insecure: store API key in plain text `.env.local`.
-    Silently skips on read-only filesystems (e.g. Streamlit Cloud).
+    Local dev only: store API key in plain text `.env.local` for convenience.
+    DISABLED on cloud deployments to prevent one user's key leaking to others.
     """
+    if _is_cloud_deployment():
+        return
     env_path = Path(__file__).resolve().parent / ".env.local"
     try:
         env_map = _parse_env_local(env_path)
