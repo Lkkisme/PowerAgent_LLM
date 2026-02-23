@@ -5,6 +5,7 @@ from __future__ import annotations
 import copy
 from html import escape
 import json
+import os
 import re
 import uuid
 from pathlib import Path
